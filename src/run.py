@@ -44,7 +44,6 @@ def run(_run, _config, _log):
             args.env_args["map_name"], 
             args.name, 
             args.agent, 
-            args.cg_edges,
             str(args.env_args["capability_config"]["n_units"])+"v"+str(args.env_args["capability_config"]["n_enemies"]), 
             "seed_"+str(args.seed)
         ]))
