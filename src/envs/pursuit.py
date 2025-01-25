@@ -5,7 +5,7 @@ from __future__ import print_function
 import random
 
 import numpy as np
-from smac.env.multiagentenv import MultiAgentEnv
+from smacv2.env.multiagentenv import MultiAgentEnv
 import copy
 
 
