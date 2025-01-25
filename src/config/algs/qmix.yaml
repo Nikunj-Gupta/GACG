@@ -1,4 +1,5 @@
 # --- QMIX specific parameters ---
+is_masssge: False
 
 # use epsilon greedy action selector
 action_selector: "epsilon_greedy"
