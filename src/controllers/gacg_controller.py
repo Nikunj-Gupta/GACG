@@ -109,7 +109,7 @@ class GroupMessageMAC(BasicMAC):
             group_mask = (group_index[:, :, None] == group_index[:, None, :]).float()
             # print(group_mask[0])
             covariance_matrix = torch.bmm(group_mask,group_mask.transpose(1, 2))
-            PosDef_covariance_matrix = covariance_matrix + self.small_eye_matrix
+            PosDef_covariance_matrix = covariance_matrix + self.small_eye_matrix.to(ep_batch.device) 
             PosDef_min_value = torch.min(PosDef_covariance_matrix)
             PosDef_max_value = torch.max(PosDef_covariance_matrix)
             # Normalize the tensor to [0, 1]
