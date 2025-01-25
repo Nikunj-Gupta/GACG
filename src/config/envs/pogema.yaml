@@ -1,0 +1,19 @@
+env: pogema
+
+env_args:
+  seed: 1 
+  size: 10  
+  density: 0.1 
+  num_agents: 4
+  obs_radius: 7 
+  max_episode_steps: 256 
+  mh_distance: False 
+  map_name: "" 
+
+# --- pymarl options ---
+t_max: 10000000  # Stop running after this many timesteps
+
+# --- Logging options ---
+use_tensorboard: True  # Log results to tensorboard
+save_model: True  # Save the models to disk
+save_model_interval: 10000000  # Save models after this many timesteps
