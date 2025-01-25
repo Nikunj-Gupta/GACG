@@ -122,7 +122,7 @@ class DICGraphMAC(BasicMAC):
         self.dicg_aggregator.cuda()
 
     def save_models(self, path):
-        BasicMAC.save(self, path)
+        BasicMAC.save_models(self, path)
         th.save(self.dicg_encoder.state_dict(), '{}/dicg_encoder.th'.format(path))
         th.save(self.attention_layer.state_dict(), '{}/attention_layer.th'.format(path))
         th.save(self.gcn_layers.state_dict(), '{}/gcn_layers.th'.format(path))
