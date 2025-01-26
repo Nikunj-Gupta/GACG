@@ -8,8 +8,8 @@ epsilon_finish: 0.05
 epsilon_anneal_time: 50000
 
 runner: "episode"
-
 buffer_size: 5000
+optimizer: 'adam'
 
 # update the target network every {} episodes
 target_update_interval: 200
