@@ -1,15 +1,4 @@
-## Run an experiment 
-
-Tasks can be found in `src/envs`. 
-
-To run experiments on SMAC benchmark:
-```shell
-python src/main.py --config=gacg --env-config=sc2 with env_args.map_name='10m_vs_11m' 
-```
-
-The requirements.txt file can be used to install the necessary packages into a virtual environment.
-
-## Baselines used in this paper
+## Algorithms 
 - [**QMIX**: QMIX: Monotonic Value Function Factorisation for Deep Multi-Agent Reinforcement Learning](https://arxiv.org/abs/1803.11485)
 - [**DCG**: Deep Coordination Graphs](https://arxiv.org/abs/1910.00091)
 - [**DICG**: Deep Implicit Coordination Graphs for Multi-agent Reinforcement Learning](https://arxiv.org/abs/2006.11438) 
