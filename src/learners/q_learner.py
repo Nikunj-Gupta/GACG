@@ -3,8 +3,7 @@ from components.episode_buffer import EpisodeBatch
 from modules.mixers.vdn import VDNMixer
 from modules.mixers.qmix import QMixer
 import torch as th
-from torch.optim import RMSprop
-import sys
+from torch.optim import RMSprop, Adam 
 
 class QLearner:
     def __init__(self, mac, scheme, logger, args):
@@ -27,7 +26,10 @@ class QLearner:
             self.params += list(self.mixer.parameters())
             self.target_mixer = copy.deepcopy(self.mixer)
 
-        self.optimiser = RMSprop(params=self.params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
+        if self.args.optimizer == 'adam':
+            self.optimiser = Adam(params=self.params,  lr=args.lr)
+        else:
+            self.optimiser = RMSprop(params=self.params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
         # a little wasteful to deepcopy (e.g. duplicates action selector), but should work for any MAC
         self.target_mac = copy.deepcopy(mac)
@@ -105,7 +107,7 @@ class QLearner:
         masked_td_error = td_error * mask
 
         # Normal L2 loss, take mean over actual data
-        loss = (masked_td_error ** 2).sum() / mask.sum()
+        loss = 0.5 * (masked_td_error ** 2).sum() / mask.sum()
 
         # Optimise
         self.optimiser.zero_grad()
