@@ -29,40 +29,40 @@ class QTranBase(nn.Module):
 
         if self.args.network_size == "small":
             self.Q = nn.Sequential(nn.Linear(q_input_size, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, 1))
 
             # V(s)
             self.V = nn.Sequential(nn.Linear(self.state_dim, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, 1))
             ae_input = self.args.rnn_hidden_dim + self.n_actions
             self.action_encoding = nn.Sequential(nn.Linear(ae_input, ae_input),
-                                                 nn.ReLU(),
+                                                 nn.ReLU(inplace=True),
                                                  nn.Linear(ae_input, ae_input))
         elif self.args.network_size == "big":
             self.Q = nn.Sequential(nn.Linear(q_input_size, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, 1))
             # V(s)
             self.V = nn.Sequential(nn.Linear(self.state_dim, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, self.embed_dim),
-                                   nn.ReLU(),
+                                   nn.ReLU(inplace=True),
                                    nn.Linear(self.embed_dim, 1))
             ae_input = self.args.rnn_hidden_dim + self.n_actions
             self.action_encoding = nn.Sequential(nn.Linear(ae_input, ae_input),
-                                                 nn.ReLU(),
+                                                 nn.ReLU(inplace=True),
                                                  nn.Linear(ae_input, ae_input))
         else:
             assert False
