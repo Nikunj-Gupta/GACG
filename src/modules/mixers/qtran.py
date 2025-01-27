@@ -2,7 +2,8 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-
+from components.tgat_module import TGANMARL 
+from components.tgat_graph import NeighborFinder 
 
 class QTranBase(nn.Module):
     def __init__(self, args):
@@ -88,17 +89,30 @@ class QTranBase(nn.Module):
             else:
                 # It will arrive as (bs, ts, agents, actions), we need to reshape it
                 actions = actions.reshape(bs * ts, self.n_agents, self.n_actions)
+            
+            hidden_states = hidden_states.reshape(-1, self.args.rnn_hidden_dim) 
+            train_src_l = np.random.choice(range(1, self.args.n_agents + 1), bs * ts * self.n_agents).tolist() 
+            train_dst_l = np.random.choice(range(1, self.args.n_agents + 1), bs * ts * self.n_agents).tolist() 
+            train_e_idx_l = list(range(1, bs * ts * self.n_agents + 1)) 
+            train_ts_l = np.random.choice(range(1, ts + 1), bs * ts * self.n_agents).tolist() 
+            adj_list = [[] for _ in range(self.n_agents + 1)] 
+            for src, dst, eidx, ts in zip(train_src_l, train_dst_l, train_e_idx_l, train_ts_l): 
+                adj_list[src].append((dst, eidx, ts))
+                adj_list[dst].append((src, eidx, ts)) 
+            ngh_finder = NeighborFinder(adj_list) 
+            tgan = TGANMARL(ngh_finder, hidden_states, hidden_states) 
+            hidden_states = tgan.forward(src_idx_l=np.array(train_src_l), cut_time_l=np.array(train_ts_l)) 
 
-            hidden_states = hidden_states.reshape(bs * ts, self.n_agents, -1)
+            hidden_states = hidden_states.reshape(-1, self.n_agents, self.args.rnn_hidden_dim)
             agent_state_action_input = th.cat([hidden_states, actions], dim=2)
-            agent_state_action_encoding = self.action_encoding(agent_state_action_input.reshape(bs * ts * self.n_agents, -1)).reshape(bs * ts, self.n_agents, -1)
+            agent_state_action_encoding = self.action_encoding(agent_state_action_input.reshape(-1, self.args.rnn_hidden_dim + self.n_actions)).reshape(-1, self.n_agents, self.args.rnn_hidden_dim + self.n_actions)
             agent_state_action_encoding = agent_state_action_encoding.sum(dim=1) # Sum across agents
 
             inputs = th.cat([states, agent_state_action_encoding], dim=1)
 
         q_outputs = self.Q(inputs)
 
-        states = batch["state"].reshape(bs * ts, self.state_dim)
+        states = batch["state"].reshape(-1, self.state_dim)
         v_outputs = self.V(states)
 
         return q_outputs, v_outputs
