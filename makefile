@@ -1,6 +1,6 @@
 all: 
 	clear 
-	python src/main.py --config=qtran --env-config=pogema with seed=10 use_cuda=True 
+	python src/main.py --config=qtran --env-config=pogema with seed=10 use_cuda=False
 
 pogema-runs: 
 	# CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=pogema with seed=0 use_cuda=True & 
