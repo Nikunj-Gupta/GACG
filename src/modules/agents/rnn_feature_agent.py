@@ -4,6 +4,7 @@ import torch.nn as nn
 class RNNFeatureAgent(nn.Module):
     """ Identical to rnn_agent, but does not compute value/probability for each action, only the hidden state. """
     def __init__(self, input_shape, args):
+        print("Using RNN feature agent") 
         nn.Module.__init__(self)
         self.args = args
         self.fc1 = nn.Linear(input_shape, args.rnn_hidden_dim)

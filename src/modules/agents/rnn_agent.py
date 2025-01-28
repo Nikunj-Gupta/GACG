@@ -4,6 +4,7 @@ import torch.nn.functional as F
 class RNNAgent(nn.Module):
     def __init__(self, input_shape, args):
         super(RNNAgent, self).__init__()
+        print("Using RNN agent")
         self.args = args
 
         self.fc1 = nn.Linear(input_shape, args.rnn_hidden_dim)
