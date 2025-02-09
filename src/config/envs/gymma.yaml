@@ -1,6 +1,7 @@
 env: "gymma"
 
 env_args:
+  N: 4
   key: null
   time_limit: 100
   pretrained_wrapper: null
