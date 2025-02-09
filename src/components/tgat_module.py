@@ -299,7 +299,7 @@ class MeanPool(torch.nn.Module):
 class AttnModel(torch.nn.Module):
     """Attention based temporal layers
     """
-    def __init__(self, feat_dim, edge_dim, time_dim, 
+    def __init__(self, feat_dim, time_dim, 
                  attn_mode='prod', n_head=2, drop_out=0.1):
         """
         args:
@@ -315,9 +315,8 @@ class AttnModel(torch.nn.Module):
         self.feat_dim = feat_dim
         self.time_dim = time_dim
         
-        self.edge_in_dim = (feat_dim + edge_dim + time_dim)
+        self.edge_in_dim = (feat_dim + time_dim)
         self.model_dim = self.edge_in_dim
-        #self.edge_fc = torch.nn.Linear(self.edge_in_dim, self.feat_dim, bias=False)
 
         self.merger = MergeLayer(self.model_dim, feat_dim, feat_dim, feat_dim)
 
@@ -346,7 +345,7 @@ class AttnModel(torch.nn.Module):
             raise ValueError('attn_mode can only be prod or map')
         
         
-    def forward(self, src, src_t, seq, seq_t, seq_e, mask):
+    def forward(self, src, src_t, seq, seq_t, mask):
         """"Attention based temporal attention forward pass
         args:
           src: float Tensor of shape [B, D]
@@ -364,9 +363,9 @@ class AttnModel(torch.nn.Module):
         """
 
         src_ext = torch.unsqueeze(src, dim=1) # src [B, 1, D]
-        src_e_ph = torch.zeros_like(src_ext)
-        q = torch.cat([src_ext, src_e_ph, src_t], dim=2) # [B, 1, D + De + Dt] -> [B, 1, D]
-        k = torch.cat([seq, seq_e, seq_t], dim=2) # [B, 1, D + De + Dt] -> [B, 1, D]
+        # src_e_ph = torch.zeros_like(src_ext)
+        q = torch.cat([src_ext, src_t], dim=2) # [B, 1, D + De + Dt] -> [B, 1, D]
+        k = torch.cat([seq, seq_t], dim=2) # [B, 1, D + De + Dt] -> [B, 1, D]
         
         mask = torch.unsqueeze(mask, dim=2) # mask [B, N, 1]
         mask = mask.permute([0, 2, 1]) #mask [B, 1, N]
@@ -380,23 +379,16 @@ class AttnModel(torch.nn.Module):
         return output, attn
 
 class TGANMARL(torch.nn.Module):
-    def __init__(self, ngh_finder, n_feat, e_feat,
+    def __init__(self, ngh_finder, feat_dim, #n_feat, #e_feat,
                  attn_mode='prod', use_time='time', agg_method='attn', node_dim=None, time_dim=None,
-                 num_layers=2, n_head=4, null_idx=0, num_heads=1, drop_out=0.1, seq_len=None):
+                 num_layers=1, n_head=1, null_idx=0, num_heads=1, drop_out=0.1, seq_len=None):
         super(TGANMARL, self).__init__()
         
         self.num_layers = num_layers 
         self.ngh_finder = ngh_finder
         self.null_idx = null_idx
         self.logger = logging.getLogger(__name__)
-        # self.n_feat_th = torch.nn.Parameter(torch.from_numpy(n_feat.astype(np.float32)))
-        # self.e_feat_th = torch.nn.Parameter(torch.from_numpy(e_feat.astype(np.float32)))
-        self.n_feat_th = torch.nn.Parameter(n_feat)
-        self.e_feat_th = torch.nn.Parameter(e_feat)
-        self.edge_raw_embed = torch.nn.Embedding.from_pretrained(self.e_feat_th, padding_idx=0, freeze=True)
-        self.node_raw_embed = torch.nn.Embedding.from_pretrained(self.n_feat_th, padding_idx=0, freeze=True)
-        
-        self.feat_dim = self.n_feat_th.shape[1]
+        self.feat_dim = feat_dim
         
         self.n_feat_dim = self.feat_dim
         self.e_feat_dim = self.feat_dim
@@ -409,7 +401,6 @@ class TGANMARL(torch.nn.Module):
             self.logger.info('Aggregation uses attention model')
             self.attn_model_list = torch.nn.ModuleList([AttnModel(self.feat_dim, 
                                                                self.feat_dim, 
-                                                               self.feat_dim,
                                                                attn_mode=attn_mode, 
                                                                n_head=n_head, 
                                                                drop_out=drop_out) for _ in range(num_layers)])
@@ -428,40 +419,40 @@ class TGANMARL(torch.nn.Module):
         
         if use_time == 'time':
             self.logger.info('Using time encoding')
-            self.time_encoder = TimeEncode(expand_dim=self.n_feat_th.shape[1])
+            self.time_encoder = TimeEncode(expand_dim=self.feat_dim)
         elif use_time == 'pos':
             assert(seq_len is not None)
             self.logger.info('Using positional encoding')
-            self.time_encoder = PosEncode(expand_dim=self.n_feat_th.shape[1], seq_len=seq_len)
+            self.time_encoder = PosEncode(expand_dim=self.feat_dim, seq_len=seq_len)
         elif use_time == 'empty':
             self.logger.info('Using empty encoding')
-            self.time_encoder = EmptyEncode(expand_dim=self.n_feat_th.shape[1])
+            self.time_encoder = EmptyEncode(expand_dim=self.feat_dim)
         else:
             raise ValueError('invalid time option!')
         
-    def forward(self, src_idx_l, cut_time_l, num_neighbors=20):
-        src_embed = self.tem_conv(src_idx_l, cut_time_l, self.num_layers, num_neighbors)        
+    def forward(self, n_feat_th, src_idx_l, cut_time_l, num_neighbors=5):
+        src_embed = self.tem_conv(n_feat_th, src_idx_l, cut_time_l, self.num_layers, num_neighbors)        
         return src_embed 
 
-    def tem_conv(self, src_idx_l, cut_time_l, curr_layers, num_neighbors=5):
+    def tem_conv(self, n_feat_th, src_idx_l, cut_time_l, curr_layers, num_neighbors=5):
         assert(curr_layers >= 0)
         
-        device = self.n_feat_th.device
-    
         batch_size = len(src_idx_l)
         
-        src_node_batch_th = torch.from_numpy(src_idx_l).long().to(device)
-        cut_time_l_th = torch.from_numpy(cut_time_l).float().to(device)
+        src_node_batch_th = torch.from_numpy(src_idx_l).long()
+        cut_time_l_th = torch.from_numpy(cut_time_l).float()
         
         cut_time_l_th = torch.unsqueeze(cut_time_l_th, dim=1)
         # query node always has the start time -> time span == 0
         src_node_t_embed = self.time_encoder(torch.zeros_like(cut_time_l_th))
+        self.node_raw_embed = torch.nn.Embedding.from_pretrained(n_feat_th, padding_idx=0, freeze=True)
         src_node_feat = self.node_raw_embed(src_node_batch_th)
         
         if curr_layers == 0:
             return src_node_feat
         else:
-            src_node_conv_feat = self.tem_conv(src_idx_l, 
+            src_node_conv_feat = self.tem_conv(src_node_feat, 
+                                           src_idx_l, 
                                            cut_time_l,
                                            curr_layers=curr_layers - 1, 
                                            num_neighbors=num_neighbors)
@@ -472,16 +463,16 @@ class TGANMARL(torch.nn.Module):
                                                                     cut_time_l, 
                                                                     num_neighbors=num_neighbors)
 
-            src_ngh_node_batch_th = torch.from_numpy(src_ngh_node_batch).long().to(device)
-            src_ngh_eidx_batch = torch.from_numpy(src_ngh_eidx_batch).long().to(device)
+            src_ngh_node_batch_th = torch.from_numpy(src_ngh_node_batch).long()
+            src_ngh_eidx_batch = torch.from_numpy(src_ngh_eidx_batch).long()
             
             src_ngh_t_batch_delta = cut_time_l[:, np.newaxis] - src_ngh_t_batch
-            src_ngh_t_batch_th = torch.from_numpy(src_ngh_t_batch_delta).float().to(device)
+            src_ngh_t_batch_th = torch.from_numpy(src_ngh_t_batch_delta).float()
             
             # get previous layer's node features
             src_ngh_node_batch_flat = src_ngh_node_batch.flatten() #reshape(batch_size, -1)
             src_ngh_t_batch_flat = src_ngh_t_batch.flatten() #reshape(batch_size, -1)  
-            src_ngh_node_conv_feat = self.tem_conv(src_ngh_node_batch_flat, 
+            src_ngh_node_conv_feat = self.tem_conv(src_node_feat, src_ngh_node_batch_flat, 
                                                    src_ngh_t_batch_flat,
                                                    curr_layers=curr_layers - 1, 
                                                    num_neighbors=num_neighbors)
@@ -489,7 +480,6 @@ class TGANMARL(torch.nn.Module):
             
             # get edge time features and node features
             src_ngh_t_embed = self.time_encoder(src_ngh_t_batch_th)
-            src_ngn_edge_feat = self.edge_raw_embed(src_ngh_eidx_batch)
 
             # attention aggregation
             mask = src_ngh_node_batch_th == 0
@@ -499,6 +489,5 @@ class TGANMARL(torch.nn.Module):
                                    src_node_t_embed,
                                    src_ngh_feat,
                                    src_ngh_t_embed, 
-                                   src_ngn_edge_feat, 
                                    mask)
             return local
