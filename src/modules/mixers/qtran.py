@@ -5,6 +5,7 @@ import numpy as np
 from torch_geometric.nn import GATConv 
 from components.tgat_module import TGANMARL 
 from components.tgat_graph import NeighborFinder 
+import random 
 
 class QTranBase(nn.Module):
     def __init__(self, args):
@@ -18,7 +19,6 @@ class QTranBase(nn.Module):
         self.arch = self.args.qtran_arch # QTran architecture
 
         self.embed_dim = args.mixing_embed_dim
-        self.edge_index = self.get_edge_index(N=self.n_agents)
         self.gat = GATConv(self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, heads=1, concat=False) 
 
         ngh_finder = NeighborFinder(adj_list=[[] for _ in range(self.n_agents + 1)]) 
@@ -88,6 +88,62 @@ class QTranBase(nn.Module):
         # return edge_index.to(self.device) 
         return edge_index
 
+    def generate_edges_with_reset_timesteps_no_interlinks(self, N, k, t):
+        """
+        Generate edges for fully connected subgraphs with timesteps resetting after every t subgraphs.
+        Removes inter-subgraph edges when the timestep resets.
+
+        :param N: Total number of nodes
+        :param k: Number of nodes per subgraph
+        :param t: Reset interval for timesteps
+        :return: Tuple (sorted_edges, timestep_values)
+        """
+        edges = set()  # To store unique edges
+        timesteps = {}  # Dictionary to store edge timesteps
+
+        num_subgraphs = N // k  # Number of subgraphs
+
+        for s in range(num_subgraphs):
+            start = s * k  # Start index for the subgraph
+            current_timestep = (s % t) + 1  # Reset after every t subgraphs
+
+            # Generate fully connected subgraph edges
+            subgraph = [(start + j, start + i + j + 1) for j in range(k - 1) for i in range(k - j - 1)]
+            
+            # Assign timestep for the current subgraph edges
+            for edge in subgraph:
+                edges.add(edge)
+                timesteps[edge] = current_timestep
+
+            # Add inter-subgraph connections (previous subgraph to current) only if no reset occurs
+            if s > 0 and s % t != 0:  # Avoid adding interlinks when timestep resets
+                for i in range(k):  # Connect each node to its corresponding node in the previous subgraph
+                    prev_node = (s - 1) * k + i
+                    curr_node = start + i
+                    if prev_node < curr_node:  # Avoid duplicate edges
+                        edges.add((prev_node, curr_node))
+                        timesteps[(prev_node, curr_node)] = current_timestep
+
+        sorted_edges = sorted(edges)  # Sort edges for consistency
+        timestep_values = [timesteps[edge] for edge in sorted_edges]  # Extract timesteps in sorted order
+
+        return sorted_edges, timestep_values
+
+    def sample_edges(self, edges, timesteps, s):
+        """
+        Randomly samples s edges and their corresponding timesteps.
+
+        :param edges: List of edges (tuples)
+        :param timesteps: List of timesteps corresponding to the edges
+        :param s: Number of samples to draw
+        :return: List of sampled edges and their corresponding timesteps
+        """
+        sampled_indices = random.sample(range(len(edges)), min(s, len(edges)))  # Ensure we don't sample more than available
+        sampled_edges = [edges[i] for i in sampled_indices]
+        sampled_timesteps = [timesteps[i] for i in sampled_indices]
+        
+        return sampled_edges, sampled_timesteps
+
     def forward(self, batch, hidden_states, actions=None):
         bs = batch.batch_size
         ts = batch.max_seq_length
@@ -112,12 +168,17 @@ class QTranBase(nn.Module):
             
             hidden_states = hidden_states.reshape(-1, self.args.rnn_hidden_dim) 
 
-            hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=self.edge_index, return_attention_weights=True) 
+            edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, ts) 
+            sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents)
+            edges = th.tensor(edges).T 
+            sampled_edges = th.tensor(sampled_edges).T 
 
-            train_src_l = edges[0][:-self.edge_index.shape[1]].tolist() 
-            train_dst_l = edges[1][:-self.edge_index.shape[1]].tolist() 
+            hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=edges, return_attention_weights=True) 
+
+            train_src_l = sampled_edges[0].tolist() 
+            train_dst_l = sampled_edges[1].tolist() 
             train_e_idx_l = list(range(1, bs * ts * self.n_agents + 1)) 
-            train_ts_l = [v for v in list(range(1, ts + 1)) for _ in range(self.n_agents)]*bs 
+            train_ts_l = sampled_timesteps 
 
             adj_list = [[] for _ in range(bs * ts * self.n_agents + 1)] 
             for src, dst, eidx, ts in zip(train_src_l, train_dst_l, train_e_idx_l, train_ts_l): 

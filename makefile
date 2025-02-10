@@ -4,7 +4,8 @@ all:
 	# python src/main.py --config=qmix --env-config=pogema with seed=10 use_cuda=True agent=gnn 
 	# python src/main.py --config=qmix --env-config=gymma with env_args.time_limit=25 env_args.key="pz-mpe-simple-spread-v3" seed=10 use_cuda=False 
 	# python src/main.py --config=qtran --env-config=gymma with env_args.N=4 env_args.time_limit=25 env_args.key="pz-mpe-simple-spread-v3" seed=10 use_cuda=False 
-	python src/main.py --config=qtran --env-config=pogema with env_args.num_agents=8 seed=10 use_cuda=False 
+	# python src/main.py --config=qtran --env-config=pogema with env_args.num_agents=8 seed=20 use_cuda=False 
+	python src/main.py --config=qtran --env-config=gymma with env_args.N=3 env_args.time_limit=25 env_args.key="pz-mpe-simple-spread-v3" seed=10 use_cuda=False
 
 pogema-runs: 
 	# CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=pogema with seed=0 use_cuda=True & 

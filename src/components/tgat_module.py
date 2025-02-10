@@ -434,7 +434,7 @@ class TGANMARL(torch.nn.Module):
         src_embed = self.tem_conv(n_feat_th, src_idx_l, cut_time_l, self.num_layers, num_neighbors)        
         return src_embed 
 
-    def tem_conv(self, n_feat_th, src_idx_l, cut_time_l, curr_layers, num_neighbors=5):
+    def tem_conv(self, n_feat_th, src_idx_l, cut_time_l, curr_layers, num_neighbors):
         assert(curr_layers >= 0)
         
         batch_size = len(src_idx_l)
