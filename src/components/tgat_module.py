@@ -430,7 +430,7 @@ class TGANMARL(torch.nn.Module):
         else:
             raise ValueError('invalid time option!')
         
-    def forward(self, n_feat_th, src_idx_l, cut_time_l, num_neighbors=5):
+    def forward(self, n_feat_th, src_idx_l, cut_time_l, num_neighbors=20):
         src_embed = self.tem_conv(n_feat_th, src_idx_l, cut_time_l, self.num_layers, num_neighbors)        
         return src_embed 
 
