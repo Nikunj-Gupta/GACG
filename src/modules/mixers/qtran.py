@@ -88,45 +88,34 @@ class QTranBase(nn.Module):
         # return edge_index.to(self.device) 
         return edge_index
 
-    def generate_edges_with_reset_timesteps_no_interlinks(self, N, k, t):
+    def generate_edges_with_reset_timesteps_no_interlinks(self, N, g, k, t):
         """
-        Generate edges for fully connected subgraphs with timesteps resetting after every t subgraphs.
-        Removes inter-subgraph edges when the timestep resets.
+        Generate edges for fully connected subgraphs with timesteps resetting after every t subgraphs. 
+        Removes inter-subgraph edges when the timestep resets. 
 
         :param N: Total number of nodes
-        :param k: Number of nodes per subgraph
+        :param g: Number of agents/nodes per timestep 
+        :param k: Number of past iterations considered
         :param t: Reset interval for timesteps
         :return: Tuple (sorted_edges, timestep_values)
         """
         edges = set()  # To store unique edges
         timesteps = {}  # Dictionary to store edge timesteps
 
-        num_subgraphs = N // k  # Number of subgraphs
-
-        for s in range(num_subgraphs):
-            start = s * k  # Start index for the subgraph
-            current_timestep = (s % t) + 1  # Reset after every t subgraphs
-
-            # Generate fully connected subgraph edges
-            subgraph = [(start + j, start + i + j + 1) for j in range(k - 1) for i in range(k - j - 1)]
-            
-            # Assign timestep for the current subgraph edges
-            for edge in subgraph:
-                edges.add(edge)
-                timesteps[edge] = current_timestep
-
-            # Add inter-subgraph connections (previous subgraph to current) only if no reset occurs
-            if s > 0 and s % t != 0:  # Avoid adding interlinks when timestep resets
-                for i in range(k):  # Connect each node to its corresponding node in the previous subgraph
-                    prev_node = (s - 1) * k + i
-                    curr_node = start + i
-                    if prev_node < curr_node:  # Avoid duplicate edges
-                        edges.add((prev_node, curr_node))
-                        timesteps[(prev_node, curr_node)] = current_timestep
-
+        for batch in range(int((N/g)/t)): 
+            start_node = batch*(g*t)
+            for reverse_timestep in range(t):
+                timestep = t-reverse_timestep -1
+                for i in range(g): 
+                    current_node = start_node + timestep * g + i
+                    for j in range(max(0,timestep- k), timestep+1):
+                        past_node = current_node - (timestep- j) * g 
+                        if past_node >= start_node: 
+                            edge = (past_node, current_node)
+                            edges.add(edge)
+                            timesteps[edge] = timestep
         sorted_edges = sorted(edges)  # Sort edges for consistency
         timestep_values = [timesteps[edge] for edge in sorted_edges]  # Extract timesteps in sorted order
-
         return sorted_edges, timestep_values
 
     def sample_edges(self, edges, timesteps, s):
@@ -168,7 +157,7 @@ class QTranBase(nn.Module):
             
             hidden_states = hidden_states.reshape(-1, self.args.rnn_hidden_dim) 
 
-            edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, ts) 
+            edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts) # N, g, k, t 
             sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents)
             edges = th.tensor(edges).T 
             sampled_edges = th.tensor(sampled_edges).T 
