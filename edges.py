@@ -219,3 +219,51 @@ print(timesteps)
 # Print results
 for edge, timestep in zip(edges, timesteps):
     print(f"Edge: {edge}, Timestep: {timestep}")
+    
+
+## Author: Lucy 
+def generate_edges_with_reset_timesteps_no_interlinks(N, g, k, t):
+        """
+        Generate edges for fully connected subgraphs with timesteps resetting after every t subgraphs. 
+        Removes inter-subgraph edges when the timestep resets. 
+
+        :param N: Total number of nodes
+        :param g: Number of agents/nodes per timestep 
+        :param k: Number of past iterations considered
+        :param t: Reset interval for timesteps
+        :return: Tuple (sorted_edges, timestep_values)
+
+        """
+        edges = set()  # To store unique edges
+        timesteps = {}  # Dictionary to store edge timesteps
+        n = N // g  # Number of subgraphs
+
+        # print((N/g)) 
+        # print((N/g)/t) 
+        for batch in range(int((N/g)/t)): 
+            start_node = batch*(g*t)
+            for reverse_timestep in range(t):
+                timestep = t-reverse_timestep -1
+                for i in range(g): 
+                    current_node = start_node + timestep * g + i
+                    for j in range(max(0,timestep- k), timestep+1):
+                        past_node = current_node - (timestep- j) * g 
+                        if past_node >= start_node: 
+                            edge = (past_node, current_node)
+                            edges.add(edge)
+                            timesteps[edge] = timestep
+        sorted_edges = sorted(edges)  # Sort edges for consistency
+        timestep_values = [timesteps[edge] for edge in sorted_edges]  # Extract timesteps in sorted order
+        return sorted_edges, timestep_values
+
+# Example usage
+# N = 4*256*32  # Total nodes 
+N = 48 # t*g*batch_size # 4*4*3 # Total nodes 
+g = 4 
+k = 2 # Number of past iterations considered 
+t = 4 # Timestep reset interval
+
+edges, timesteps = generate_edges_with_reset_timesteps_no_interlinks(N, g, k, t)
+
+print(edges)
+print(timesteps) 
