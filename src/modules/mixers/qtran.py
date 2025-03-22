@@ -190,3 +190,4 @@ class QTranBase(nn.Module):
         v_outputs = self.V(states)
 
         return q_outputs, v_outputs
+
