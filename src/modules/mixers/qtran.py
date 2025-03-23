@@ -88,7 +88,7 @@ class QTranBase(nn.Module):
         # return edge_index.to(self.device) 
         return edge_index
 
-    def generate_edges_with_reset_timesteps_no_interlinks(self, N, g, k, t):
+    def generate_edges_with_reset_timesteps_no_interlinks(self, N, g, k, t, neighbor_table):
         """
         Generate edges for fully connected subgraphs with timesteps resetting after every t subgraphs. 
         Removes inter-subgraph edges when the timestep resets. 
@@ -101,6 +101,16 @@ class QTranBase(nn.Module):
         """
         edges = set()  # To store unique edges
         timesteps = {}  # Dictionary to store edge timesteps
+        
+        for batch in range(int((N/g)/t)): 
+            start_node = batch*(g*t)
+            for node in range(start_node, start_node  + t*g  ):
+                for neighbors in neighbor_table[node]:
+                    for neighbor in neighbors:
+                        if (node > g-1 and neighbor> g-1 and neighbor-g>= start_node ):
+                            edge = (node, neighbor-g)
+                            edges.add(edge)
+                            timesteps[edge] = int(node/g)
 
         for batch in range(int((N/g)/t)): 
             start_node = batch*(g*t)
@@ -114,6 +124,7 @@ class QTranBase(nn.Module):
                             edge = (past_node, current_node)
                             edges.add(edge)
                             timesteps[edge] = timestep
+                            
         sorted_edges = sorted(edges)  # Sort edges for consistency
         timestep_values = [timesteps[edge] for edge in sorted_edges]  # Extract timesteps in sorted order
         return sorted_edges, timestep_values
@@ -156,13 +167,34 @@ class QTranBase(nn.Module):
                 actions = actions.reshape(bs * ts, self.n_agents, self.n_actions)
             
             hidden_states = hidden_states.reshape(-1, self.args.rnn_hidden_dim) 
+            
+            threshold = 0.5
+            
+            neighbor_table = {i: [] for i in range(bs * ts * self.num_agents)}
+            
+            for timestep in range(bs*ts):
+                node_features = hidden_states[timestep]
+                
+                static_edge_index = self.get_edge_index(self.num_agents, type="full")
+                global_edge_index = static_edge_index + timestep * self.num_agents
+                
+                updated_features, (edge_index, attention_weights) = self.gat(node_features, edge_index=global_edge_index, return_attention_weights=True)
+                
+                attn = attention_weights.squeeze()  # Should become shape [num_edges]
+                mask = attn > threshold              # Boolean mask
+                filtered_edge_index = edge_index[:, mask]
+                
+                for src, dst in filtered_edge_index.t().tolist():
+                    neighbor_table[src].append(dst)
+                    neighbor_table[dst].append(src)
 
-            edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts) # N, g, k, t 
+
+            edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts, neighbor_table) # N, g, k, t 
             sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents)
             edges = th.tensor(edges).T 
             sampled_edges = th.tensor(sampled_edges).T 
 
-            hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=edges, return_attention_weights=True) 
+            hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=edges, return_attention_weights=True)
 
             train_src_l = sampled_edges[0].tolist() 
             train_dst_l = sampled_edges[1].tolist() 

@@ -222,7 +222,7 @@ for edge, timestep in zip(edges, timesteps):
     
 
 ## Author: Lucy 
-def generate_edges_with_reset_timesteps_no_interlinks(N, g, k, t):
+    def generate_edges_with_reset_timesteps_no_interlinks(self, N, g, k, t, neighbor_table):
         """
         Generate edges for fully connected subgraphs with timesteps resetting after every t subgraphs. 
         Removes inter-subgraph edges when the timestep resets. 
@@ -232,14 +232,20 @@ def generate_edges_with_reset_timesteps_no_interlinks(N, g, k, t):
         :param k: Number of past iterations considered
         :param t: Reset interval for timesteps
         :return: Tuple (sorted_edges, timestep_values)
-
         """
         edges = set()  # To store unique edges
         timesteps = {}  # Dictionary to store edge timesteps
-        n = N // g  # Number of subgraphs
+        
+        for batch in range(int((N/g)/t)): 
+            start_node = batch*(g*t)
+            for node in range(start_node, start_node  + t*g  ):
+                for neighbors in neighbor_table[node]:
+                    for neighbor in neighbors:
+                        if (node > g-1 and neighbor> g-1 and neighbor-g>= start_node ):
+                            edge = (node, neighbor-g)
+                            edges.add(edge)
+                            timesteps[edge] = int(node/g)
 
-        # print((N/g)) 
-        # print((N/g)/t) 
         for batch in range(int((N/g)/t)): 
             start_node = batch*(g*t)
             for reverse_timestep in range(t):
@@ -252,6 +258,7 @@ def generate_edges_with_reset_timesteps_no_interlinks(N, g, k, t):
                             edge = (past_node, current_node)
                             edges.add(edge)
                             timesteps[edge] = timestep
+                            
         sorted_edges = sorted(edges)  # Sort edges for consistency
         timestep_values = [timesteps[edge] for edge in sorted_edges]  # Extract timesteps in sorted order
         return sorted_edges, timestep_values
@@ -262,6 +269,7 @@ N = 48 # t*g*batch_size # 4*4*3 # Total nodes
 g = 4 
 k = 2 # Number of past iterations considered 
 t = 4 # Timestep reset interval
+
 
 edges, timesteps = generate_edges_with_reset_timesteps_no_interlinks(N, g, k, t)
 
