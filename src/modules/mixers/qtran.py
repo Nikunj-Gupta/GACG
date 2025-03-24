@@ -170,24 +170,29 @@ class QTranBase(nn.Module):
             
             threshold = 0.5
             
-            neighbor_table = {i: [] for i in range(bs * ts * self.num_agents)}
+            neighbor_table = {i: [] for i in range(bs * ts * self.n_agents)}
+            
+            static_edges = set()
             
             for timestep in range(bs*ts):
-                node_features = hidden_states[timestep]
-                
-                static_edge_index = self.get_edge_index(self.num_agents, type="full")
-                global_edge_index = static_edge_index + timestep * self.num_agents
-                
-                updated_features, (edge_index, attention_weights) = self.gat(node_features, edge_index=global_edge_index, return_attention_weights=True)
-                
-                attn = attention_weights.squeeze()  # Should become shape [num_edges]
-                mask = attn > threshold              # Boolean mask
-                filtered_edge_index = edge_index[:, mask]
-                
-                for src, dst in filtered_edge_index.t().tolist():
+                for i in range(self.n_agents):
+                    node = i + timestep * self.n_agents
+                    for neighbor in range(node, node + self.n_agents):
+                        edge = (node, neighbor)
+                        static_edges.add(edge)
+            
+            sorted_static_edges = sorted(static_edges)    
+            sorted_static_edges = th.tensor(sorted_static_edges).T 
+            hidden_states, (edge_index, attention_weights) = self.gat(hidden_states, edge_index=sorted_static_edges, return_attention_weights=True)
+            
+            attn = attention_weights.squeeze()  # Should become shape [num_edges]
+            mask = attn > threshold             # Boolean mask
+            filtered_edge_index = edge_index[:, mask]
+            
+            for src, dst in filtered_edge_index.t().tolist():
+                if (src != dst):
                     neighbor_table[src].append(dst)
                     neighbor_table[dst].append(src)
-
 
             edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts, neighbor_table) # N, g, k, t 
             sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents)
