@@ -2,6 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import math
 from torch_geometric.nn import GATConv 
 from components.tgat_module import TGANMARL 
 from components.tgat_graph import NeighborFinder 
@@ -102,23 +103,26 @@ class QTranBase(nn.Module):
         edges = set()  # To store unique edges
         timesteps = {}  # Dictionary to store edge timesteps
         
+        k_past_self = int(4/10 * t)
+        
+        k_past_neighbors = int(t/ math.log(t) ** 3)
+        
         for batch in range(int((N/g)/t)): 
             start_node = batch*(g*t)
             for node in range(start_node, start_node  + t*g  ):
-                for neighbors in neighbor_table[node]:
-                    for neighbor in neighbors:
-                        if (node > g-1 and neighbor> g-1 and neighbor-g>= start_node ):
-                            edge = (node, neighbor-g)
+                    for neighbor in neighbor_table[node]: 
+                        if (node>g-1 and neighbor> g-1 and neighbor-g>= start_node ):
+                            edge = (node, neighbor-g) 
                             edges.add(edge)
                             timesteps[edge] = int(node/g)
 
         for batch in range(int((N/g)/t)): 
             start_node = batch*(g*t)
             for reverse_timestep in range(t):
-                timestep = t-reverse_timestep -1
+                timestep = t -reverse_timestep -1
                 for i in range(g): 
                     current_node = start_node + timestep * g + i
-                    for j in range(max(0,timestep- k), timestep+1):
+                    for j in range(max(0,timestep- k_past_self), timestep+1):
                         past_node = current_node - (timestep- j) * g 
                         if past_node >= start_node: 
                             edge = (past_node, current_node)
@@ -168,26 +172,48 @@ class QTranBase(nn.Module):
             
             hidden_states = hidden_states.reshape(-1, self.args.rnn_hidden_dim) 
             
-            threshold = 0.5
-            
             neighbor_table = {i: [] for i in range(bs * ts * self.n_agents)}
             
             static_edges = set()
             
+            max_node = bs * ts * self.n_agents  # hidden_states.shape[0] 
             for timestep in range(bs*ts):
                 for i in range(self.n_agents):
                     node = i + timestep * self.n_agents
                     for neighbor in range(node, node + self.n_agents):
-                        edge = (node, neighbor)
-                        static_edges.add(edge)
+                        if neighbor < max_node:  # fix here
+                            edge = (node, neighbor)
+                            static_edges.add(edge)
             
             sorted_static_edges = sorted(static_edges)    
             sorted_static_edges = th.tensor(sorted_static_edges).T 
             hidden_states, (edge_index, attention_weights) = self.gat(hidden_states, edge_index=sorted_static_edges, return_attention_weights=True)
             
-            attn = attention_weights.squeeze()  # Should become shape [num_edges]
-            mask = attn > threshold             # Boolean mask
-            filtered_edge_index = edge_index[:, mask]
+            threshold = 0.5
+
+            timestep_per_edge = edge_index[0] // self.n_agents 
+            
+            filtered_edges = []
+            
+            for timestep in range(bs * ts):
+            
+                t_mask = (timestep_per_edge == timestep)
+                
+                if t_mask.sum() == 0:
+                    continue  # Skip if there are no edges for this timestep
+                # Compute the mean attention weight A_t for the current timestep
+                M = attention_weights[t_mask].mean()
+                
+                # Get the indices for these edges
+                t_indices = t_mask.nonzero(as_tuple=True)[0]
+                
+                for i in t_indices:
+                    w_i = attention_weights[i]
+                    diff = max ( M**2 - w_i**2, w_i**2 - M**2)
+                    if math.sqrt(diff) > threshold:
+                        filtered_edges.append(edge_index[:, i])
+                        
+            filtered_edge_index = th.stack(filtered_edges, dim=1)
             
             for src, dst in filtered_edge_index.t().tolist():
                 if (src != dst):
@@ -199,7 +225,7 @@ class QTranBase(nn.Module):
             edges = th.tensor(edges).T 
             sampled_edges = th.tensor(sampled_edges).T 
 
-            hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=edges, return_attention_weights=True)
+            # hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=edges, return_attention_weights=True)
 
             train_src_l = sampled_edges[0].tolist() 
             train_dst_l = sampled_edges[1].tolist() 
@@ -227,4 +253,3 @@ class QTranBase(nn.Module):
         v_outputs = self.V(states)
 
         return q_outputs, v_outputs
-
