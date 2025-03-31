@@ -189,7 +189,10 @@ class QTranBase(nn.Module):
             sorted_static_edges = th.tensor(sorted_static_edges).T 
             hidden_states, (edge_index, attention_weights) = self.gat(hidden_states, edge_index=sorted_static_edges, return_attention_weights=True)
             
-            threshold = 0.5
+            min_val = attention_weights.min().item()
+            max_val = attention_weights.max().item()
+            
+            threshold = (min_val + max_val)/2
 
             timestep_per_edge = edge_index[0] // self.n_agents 
             
