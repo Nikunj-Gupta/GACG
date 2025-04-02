@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import math
-from torch_geometric.nn import GATConv 
+# from torch_geometric.nn import GATConv 
+from torch_geometric.nn import GATv2Conv 
 from components.tgat_module import TGANMARL 
 from components.tgat_graph import NeighborFinder 
 import random 
@@ -20,7 +21,7 @@ class QTranBase(nn.Module):
         self.arch = self.args.qtran_arch # QTran architecture
 
         self.embed_dim = args.mixing_embed_dim
-        self.gat = GATConv(self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, heads=1, concat=False) 
+        self.gat = GATv2Conv(self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, heads=1, concat=False) 
 
         ngh_finder = NeighborFinder(adj_list=[[] for _ in range(self.n_agents + 1)]) 
         self.tgan = TGANMARL(ngh_finder, self.args.rnn_hidden_dim) 
