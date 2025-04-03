@@ -225,24 +225,24 @@ class QTranBase(nn.Module):
                     neighbor_table[dst].append(src)
 
             edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts, neighbor_table) # N, g, k, t 
-            sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents)
-            edges = th.tensor(edges).T 
-            sampled_edges = th.tensor(sampled_edges).T 
+            tgat_batch = 2 
+            for _ in range(tgat_batch):  
+                sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents) 
+                sampled_edges = th.tensor(sampled_edges).T 
+                # hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=edges, return_attention_weights=True)
+                train_src_l = sampled_edges[0].tolist() 
+                train_dst_l = sampled_edges[1].tolist() 
+                # train_e_idx_l = list(range(1, bs * ts * self.n_agents + 1)) 
+                train_e_idx_l = list(range(1, sampled_edges.shape[1] + 1)) 
+                train_ts_l = sampled_timesteps 
 
-            # hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=edges, return_attention_weights=True)
-
-            train_src_l = sampled_edges[0].tolist() 
-            train_dst_l = sampled_edges[1].tolist() 
-            train_e_idx_l = list(range(1, bs * ts * self.n_agents + 1)) 
-            train_ts_l = sampled_timesteps 
-
-            adj_list = [[] for _ in range(bs * ts * self.n_agents + 1)] 
-            for src, dst, eidx, ts in zip(train_src_l, train_dst_l, train_e_idx_l, train_ts_l): 
-                adj_list[src].append((dst, eidx, ts))
-                adj_list[dst].append((src, eidx, ts)) 
-            ngh_finder = NeighborFinder(adj_list) 
-            self.tgan.ngh_finder = ngh_finder 
-            hidden_states = self.tgan.forward(n_feat_th=hidden_states, src_idx_l=np.array(train_src_l), cut_time_l=np.array(train_ts_l)) 
+                adj_list = [[] for _ in range(bs * ts * self.n_agents + 1)] 
+                for src, dst, eidx, tss in zip(train_src_l, train_dst_l, train_e_idx_l, train_ts_l): 
+                    adj_list[src].append((dst, eidx, tss))
+                    adj_list[dst].append((src, eidx, tss)) 
+                ngh_finder = NeighborFinder(adj_list) 
+                self.tgan.ngh_finder = ngh_finder 
+                hidden_states = self.tgan(n_feat_th=hidden_states, src_idx_l=np.array(train_src_l), cut_time_l=np.array(train_ts_l)) 
 
             hidden_states = hidden_states.reshape(-1, self.n_agents, self.args.rnn_hidden_dim)
             agent_state_action_input = th.cat([hidden_states, actions], dim=2)
