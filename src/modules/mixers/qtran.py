@@ -227,6 +227,8 @@ class QTranBase(nn.Module):
                 if (src != dst):
                     neighbor_table[src].append(dst)
                     neighbor_table[dst].append(src)
+                    
+                    #comment
 
             edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts, neighbor_table) # N, g, k, t 
             tgat_batch = 2 
