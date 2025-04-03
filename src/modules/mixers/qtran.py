@@ -104,7 +104,7 @@ class QTranBase(nn.Module):
         edges = set()  # To store unique edges
         timesteps = {}  # Dictionary to store edge timesteps
         
-        k_past_self = int(4/10 * t)
+        k_past_self = int(10/10 * t)
         
         k_past_neighbors = int(t/ math.log(t) ** 3)
         
@@ -229,7 +229,7 @@ class QTranBase(nn.Module):
                     neighbor_table[dst].append(src)
 
             edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts, neighbor_table) # N, g, k, t 
-            tgat_batch = 2 
+            tgat_batch = 4 
             for _ in range(tgat_batch):  
                 sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents) 
                 sampled_edges = th.tensor(sampled_edges).T 
