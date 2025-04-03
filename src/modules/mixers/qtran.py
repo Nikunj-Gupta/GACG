@@ -205,17 +205,21 @@ class QTranBase(nn.Module):
                 
                 if t_mask.sum() == 0:
                     continue  # Skip if there are no edges for this timestep
+                
                 # Compute the mean attention weight A_t for the current timestep
                 M = attention_weights[t_mask].mean()
                 
                 # Get the indices for these edges
-                t_indices = t_mask.nonzero(as_tuple=True)[0]
+                t_attention = attention_weights[t_mask]
+                 
+                median_val = th.quantile(t_attention, 0.5)
+                
+                keep_mask = (t_attention >= median_val)
+                
+                t_indices = keep_mask.nonzero(as_tuple=True)[0]
                 
                 for i in t_indices:
-                    w_i = attention_weights[i]
-                    diff = max ( M**2 - w_i**2, w_i**2 - M**2)
-                    if math.sqrt(diff) > threshold:
-                        filtered_edges.append(edge_index[:, i])
+                    filtered_edges.append(edge_index[:, i])
                         
             filtered_edge_index = th.stack(filtered_edges, dim=1)
             
