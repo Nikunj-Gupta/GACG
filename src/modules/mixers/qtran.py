@@ -106,16 +106,20 @@ class QTranBase(nn.Module):
         
         k_past_self = int(10/10 * t)
         
-        k_past_neighbors = int(t/ math.log(t) ** 3)
+        k_past_neighbors = int(t/ math.log(t) ** 3)    
         
         for batch in range(int((N/g)/t)): 
             start_node = batch*(g*t)
-            for node in range(start_node, start_node  + t*g  ):
-                    for neighbor in neighbor_table[node]: 
-                        if (node>g-1 and neighbor> g-1 and neighbor-g>= start_node ):
-                            edge = (node, neighbor-g) 
-                            edges.add(edge)
-                            timesteps[edge] = int(node/g)
+            for reverse_timestep in range(t):
+                timestep = t -reverse_timestep -1
+                for node in range(start_node, start_node  + timestep*g  ):
+                    for j in range(max(0,timestep-k_past_neighbors), timestep+1):
+                        for neighbor in neighbor_table[node]: 
+                            past_neighbor = neighbor - (timestep- j) * g
+                            if (past_neighbor>g-1 and neighbor> g-1 and neighbor-g>= start_node ):
+                                edge = (node, past_neighbor) 
+                                edges.add(edge)
+                                timesteps[edge] = int(node/g)
 
         for batch in range(int((N/g)/t)): 
             start_node = batch*(g*t)
@@ -189,11 +193,6 @@ class QTranBase(nn.Module):
             sorted_static_edges = sorted(static_edges)    
             sorted_static_edges = th.tensor(sorted_static_edges).T 
             hidden_states, (edge_index, attention_weights) = self.gat(hidden_states, edge_index=sorted_static_edges, return_attention_weights=True)
-            
-            min_val = attention_weights.min().item()
-            max_val = attention_weights.max().item()
-            
-            threshold = (min_val + max_val)/2
 
             timestep_per_edge = edge_index[0] // self.n_agents 
             
@@ -205,9 +204,6 @@ class QTranBase(nn.Module):
                 
                 if t_mask.sum() == 0:
                     continue  # Skip if there are no edges for this timestep
-                
-                # Compute the mean attention weight A_t for the current timestep
-                M = attention_weights[t_mask].mean()
                 
                 # Get the indices for these edges
                 t_attention = attention_weights[t_mask]
