@@ -106,7 +106,7 @@ class QTranBase(nn.Module):
         
         k_past_self = int(10/10 * t)
         
-        k_past_neighbors = int(t/ math.log(t) ** 2)    
+        k_past_neighbors = int(t/ (math.log(t) ** 2))    
         
         # # graphv2 
         for batch in range(int((N/g)/t)): 
