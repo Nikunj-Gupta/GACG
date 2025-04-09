@@ -108,6 +108,7 @@ class QTranBase(nn.Module):
         
         k_past_neighbors = int(t/ math.log(t) ** 3)    
         
+        # # graphv2 
         for batch in range(int((N/g)/t)): 
             start_node = batch*(g*t)
             for reverse_timestep in range(t):
@@ -120,6 +121,21 @@ class QTranBase(nn.Module):
                                 edge = (node, past_neighbor) 
                                 edges.add(edge)
                                 timesteps[edge] = int(node/g)
+                                
+        # # graphv3  
+        # for batch in range(int((N/g)/t)): 
+        #     start_node = batch*(g*t)
+        #     for reverse_timestep in range(t):
+        #         timestep = t -reverse_timestep -1
+        #         for node in range(start_node, start_node  + timestep*g  ):
+        #             for j in range(max(0,timestep-k_past_neighbors), timestep+1):
+        #                 past_node = node - (timestep- j) * g
+        #                 if (past_node > g-1):
+        #                     for neighbor in neighbor_table[past_node]:
+        #                         if (past_node>g-1 and neighbor> g-1 and neighbor-g>= start_node ):
+        #                             edge = (node, neighbor) 
+        #                             edges.add(edge)
+        #                             timesteps[edge] = int(node/g)
 
         for batch in range(int((N/g)/t)): 
             start_node = batch*(g*t)
