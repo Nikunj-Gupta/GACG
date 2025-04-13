@@ -5,6 +5,8 @@ import numpy as np
 from torch_geometric.nn import GATv2Conv 
 from components.tgat_module import TGANMARL 
 from components.tgat_graph import NeighborFinder 
+import random 
+import math
 
 
 class QMixer(nn.Module):
@@ -14,6 +16,10 @@ class QMixer(nn.Module):
         self.args = args
         self.n_agents = args.n_agents
         self.state_dim = int(np.prod(args.state_shape))
+        self.gat = GATv2Conv(self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, heads=1, concat=False) 
+        
+        ngh_finder = NeighborFinder(adj_list=[[] for _ in range(self.n_agents + 1)]) 
+        self.tgan = TGANMARL(ngh_finder, self.args.rnn_hidden_dim) 
 
         self.embed_dim = args.mixing_embed_dim
 
@@ -212,9 +218,6 @@ class QMixer(nn.Module):
             hidden_states = self.tgan(n_feat_th=hidden_states, src_idx_l=np.array(train_src_l), cut_time_l=np.array(train_ts_l)) 
 
         hidden_states = hidden_states.reshape(-1, self.n_agents, self.args.rnn_hidden_dim)
-        agent_state_action_input = th.cat([hidden_states, actions], dim=2)
-        agent_state_action_encoding = self.action_encoding(agent_state_action_input.reshape(-1, self.args.rnn_hidden_dim + self.n_actions)).reshape(-1, self.n_agents, self.args.rnn_hidden_dim + self.n_actions)
-        agent_state_action_encoding = agent_state_action_encoding.sum(dim=1) # Sum across agents
         
         # First layer
         w1 = th.abs(self.hyper_w_1(states))
