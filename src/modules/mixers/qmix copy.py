@@ -2,6 +2,9 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from torch_geometric.nn import GATv2Conv 
+from components.tgat_module import TGANMARL 
+from components.tgat_graph import NeighborFinder 
 
 
 class QMixer(nn.Module):
@@ -133,8 +136,86 @@ class QMixer(nn.Module):
 
     def forward(self, agent_qs, states, hidden_states=None, ):
         bs = agent_qs.size(0)
+        ts = int(states.size(0) / bs)
         states = states.reshape(-1, self.state_dim)
         agent_qs = agent_qs.view(-1, 1, self.n_agents)
+        
+        hidden_states = hidden_states.reshape(-1, self.args.rnn_hidden_dim) 
+            
+        neighbor_table = {i: [] for i in range(bs * ts * self.n_agents)}
+        
+        static_edges = set()
+        
+        max_node = bs * ts * self.n_agents  # hidden_states.shape[0] 
+        for timestep in range(bs*ts):
+            for i in range(self.n_agents):
+                node = i + timestep * self.n_agents
+                for neighbor in range(node, node + self.n_agents):
+                    if neighbor < max_node:  # fix here
+                        edge = (node, neighbor)
+                        static_edges.add(edge)
+        
+        sorted_static_edges = sorted(static_edges)    
+        sorted_static_edges = th.tensor(sorted_static_edges).T 
+        hidden_states, (edge_index, attention_weights) = self.gat(hidden_states, edge_index=sorted_static_edges, return_attention_weights=True)
+
+        timestep_per_edge = edge_index[0] // self.n_agents 
+        
+        filtered_edges = []
+        
+        for timestep in range(bs * ts):
+        
+            t_mask = (timestep_per_edge == timestep)
+            
+            if t_mask.sum() == 0:
+                continue  # Skip if there are no edges for this timestep
+            
+            # Get the indices for these edges
+            t_attention = attention_weights[t_mask]
+                
+            median_val = th.quantile(t_attention, 0.5)
+            
+            keep_mask = (t_attention >= median_val)
+            
+            t_indices = keep_mask.nonzero(as_tuple=True)[0]
+            
+            for i in t_indices:
+                filtered_edges.append(edge_index[:, i])
+                    
+        filtered_edge_index = th.stack(filtered_edges, dim=1)
+        
+        for src, dst in filtered_edge_index.t().tolist():
+            if (src != dst):
+                neighbor_table[src].append(dst)
+                neighbor_table[dst].append(src)
+                
+                #comment
+
+        edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts, neighbor_table) # N, g, k, t 
+        tgat_batch = 4 
+        for _ in range(tgat_batch):  
+            sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents) 
+            sampled_edges = th.tensor(sampled_edges).T 
+            # hidden_states, (edges, weights) = self.gat(hidden_states, edge_index=edges, return_attention_weights=True)
+            train_src_l = sampled_edges[0].tolist() 
+            train_dst_l = sampled_edges[1].tolist() 
+            # train_e_idx_l = list(range(1, bs * ts * self.n_agents + 1)) 
+            train_e_idx_l = list(range(1, sampled_edges.shape[1] + 1)) 
+            train_ts_l = sampled_timesteps 
+
+            adj_list = [[] for _ in range(bs * ts * self.n_agents + 1)] 
+            for src, dst, eidx, tss in zip(train_src_l, train_dst_l, train_e_idx_l, train_ts_l): 
+                adj_list[src].append((dst, eidx, tss))
+                adj_list[dst].append((src, eidx, tss)) 
+            ngh_finder = NeighborFinder(adj_list) 
+            self.tgan.ngh_finder = ngh_finder 
+            hidden_states = self.tgan(n_feat_th=hidden_states, src_idx_l=np.array(train_src_l), cut_time_l=np.array(train_ts_l)) 
+
+        hidden_states = hidden_states.reshape(-1, self.n_agents, self.args.rnn_hidden_dim)
+        agent_state_action_input = th.cat([hidden_states, actions], dim=2)
+        agent_state_action_encoding = self.action_encoding(agent_state_action_input.reshape(-1, self.args.rnn_hidden_dim + self.n_actions)).reshape(-1, self.n_agents, self.args.rnn_hidden_dim + self.n_actions)
+        agent_state_action_encoding = agent_state_action_encoding.sum(dim=1) # Sum across agents
+        
         # First layer
         w1 = th.abs(self.hyper_w_1(states))
         b1 = self.hyper_b_1(states)
