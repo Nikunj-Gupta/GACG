@@ -140,9 +140,9 @@ class QMixer(nn.Module):
         
         return sampled_edges, sampled_timesteps
 
-    def forward(self, agent_qs, states, hidden_states=None, ):
+    def forward(self, agent_qs, states, hidden_states=None):
         bs = agent_qs.size(0)
-        ts = int(states.size(0) / bs)
+        ts =  hidden_states.size(1)
         states = states.reshape(-1, self.state_dim)
         agent_qs = agent_qs.view(-1, 1, self.n_agents)
         
@@ -162,7 +162,7 @@ class QMixer(nn.Module):
                         static_edges.add(edge)
         
         sorted_static_edges = sorted(static_edges)    
-        sorted_static_edges = th.tensor(sorted_static_edges).T 
+        sorted_static_edges = th.tensor(sorted_static_edges).T.to(hidden_states.device)
         hidden_states, (edge_index, attention_weights) = self.gat(hidden_states, edge_index=sorted_static_edges, return_attention_weights=True)
 
         timestep_per_edge = edge_index[0] // self.n_agents 
