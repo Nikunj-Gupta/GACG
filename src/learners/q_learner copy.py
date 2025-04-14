@@ -75,12 +75,12 @@ class QLearner:
             for t in range(batch.max_seq_length):
                 target_agent_outs,_ = self.target_mac.forward(batch, t=t)
                 target_mac_out.append(target_agent_outs)
-                target_mac_hidden_states.append(self.mac.hidden_states)
+                target_mac_hidden_states.append(self.target_mac.hidden_states)
         else:
             for t in range(batch.max_seq_length):
                 target_agent_outs = self.target_mac.forward(batch, t=t)
                 target_mac_out.append(target_agent_outs)
-                target_mac_hidden_states.append(self.mac.hidden_states)
+                target_mac_hidden_states.append(self.target_mac.hidden_states)
         target_mac_hidden_states = th.stack(target_mac_hidden_states, dim=1)
         target_mac_hidden_states = target_mac_hidden_states.reshape(batch.batch_size, self.args.n_agents, batch.max_seq_length, -1).transpose(1,2).cpu() #btav
 
