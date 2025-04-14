@@ -41,9 +41,11 @@ class QMixer(nn.Module):
 
         # State dependent bias for hidden layer
         self.hyper_b_1 = nn.Linear(self.state_dim, self.embed_dim)
+        
+        combined_dim = self.state_dim + self.n_agents * self.args.rnn_hidden_dim
 
         # V(s) instead of a bias for the last layers
-        self.V = nn.Sequential(nn.Linear(self.state_dim, self.embed_dim),
+        self.V = nn.Sequential(nn.Linear(combined_dim, self.embed_dim),
                                nn.ReLU(),
                                nn.Linear(self.embed_dim, 1))
         
@@ -219,6 +221,10 @@ class QMixer(nn.Module):
 
         hidden_states = hidden_states.reshape(-1, self.n_agents, self.args.rnn_hidden_dim)
         
+        hidden_flat = hidden_states.view(bs, ts, -1)  # shape: (bs, ts, n * hidden_state_dim)
+        
+        combined_states = torch.cat([states, hidden_flat], dim=-1)  # shape: (bs, ts, state_dim + n*hidden_state_dim)
+        
         # First layer
         w1 = th.abs(self.hyper_w_1(states))
         b1 = self.hyper_b_1(states)
@@ -229,7 +235,7 @@ class QMixer(nn.Module):
         w_final = th.abs(self.hyper_w_final(states))
         w_final = w_final.view(-1, self.embed_dim, 1)
         # State-dependent bias
-        v = self.V(states).view(-1, 1, 1)
+        v = self.V(combined_states).view(-1, 1, 1)
         # Compute final output
         y = th.bmm(hidden, w_final) + v
         # Reshape and return
