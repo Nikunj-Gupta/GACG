@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class MergeLayer(torch.nn.Module):
+    
+    
     def __init__(self, dim1, dim2, dim3, dim4):
         super().__init__()
         #self.layer_norm = torch.nn.LayerNorm(dim1 + dim2)
@@ -27,8 +29,9 @@ class MergeLayer(torch.nn.Module):
 class ScaledDotProductAttention(torch.nn.Module):
     ''' Scaled Dot-Product Attention '''
 
-    def __init__(self, temperature, attn_dropout=0.1):
+    def __init__(self, temperature, attn_dropout=0.1):  
         super().__init__()
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.temperature = temperature
         self.dropout = torch.nn.Dropout(attn_dropout)
         self.softmax = torch.nn.Softmax(dim=2)
@@ -37,9 +40,11 @@ class ScaledDotProductAttention(torch.nn.Module):
 
         attn = torch.bmm(q, k.transpose(1, 2))
         attn = attn / self.temperature
+        
+        mask = mask.to(self.device)
 
         if mask is not None:
-            attn = attn.masked_fill(mask, -1e10)
+            attn = attn.masked_fill(mask, -1e10).to(self.device)
 
         attn = self.softmax(attn) # [n * b, l_q, l_k]
         attn = self.dropout(attn) # [n * b, l_v, d]
@@ -53,7 +58,7 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(self, n_head, d_model, d_k, d_v, dropout=0.1):
         super().__init__()
-
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.n_head = n_head
         self.d_k = d_k
         self.d_v = d_v
@@ -112,7 +117,7 @@ class MapBasedMultiHeadAttention(nn.Module):
 
     def __init__(self, n_head, d_model, d_k, d_v, dropout=0.1):
         super().__init__()
-
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.n_head = n_head
         self.d_k = d_k
         self.d_v = d_v
@@ -171,7 +176,7 @@ class MapBasedMultiHeadAttention(nn.Module):
         attn = self.weight_map(q_k).squeeze(dim=3) # [(n*b), lq, lk]
         
         if mask is not None:
-            attn = attn.masked_fill(mask, -1e10)
+            attn = attn.masked_fill(mask, -1e10).to(self.device)
 
         attn = self.softmax(attn) # [n * b, l_q, l_k]
         attn = self.dropout(attn) # [n * b, l_q, l_k]
@@ -198,7 +203,7 @@ class TimeEncode(torch.nn.Module):
     def __init__(self, expand_dim, factor=5):
         super(TimeEncode, self).__init__()
         #init_len = np.array([1e8**(i/(time_dim-1)) for i in range(time_dim)])
-        
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         time_dim = expand_dim
         self.factor = factor
         self.basis_freq = torch.nn.Parameter((torch.from_numpy(1 / 10 ** np.linspace(0, 9, time_dim))).float())
@@ -213,7 +218,7 @@ class TimeEncode(torch.nn.Module):
         batch_size = ts.size(0)
         seq_len = ts.size(1)
                 
-        ts = ts.view(batch_size, seq_len, 1)# [N, L, 1]
+        ts = ts.view(batch_size, seq_len, 1).to(self.device)# [N, L, 1]
         map_ts = ts * self.basis_freq.view(1, 1, -1) # [N, L, time_dim]
         map_ts += self.phase.view(1, 1, -1)
         
@@ -226,7 +231,7 @@ class TimeEncode(torch.nn.Module):
 class PosEncode(torch.nn.Module):
     def __init__(self, expand_dim, seq_len):
         super().__init__()
-        
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.pos_embeddings = nn.Embedding(num_embeddings=seq_len, embedding_dim=expand_dim)
         
     def forward(self, ts):
@@ -240,6 +245,7 @@ class EmptyEncode(torch.nn.Module):
     def __init__(self, expand_dim):
         super().__init__()
         self.expand_dim = expand_dim
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         
     def forward(self, ts):
         out = torch.zeros_like(ts).float()
@@ -251,6 +257,7 @@ class EmptyEncode(torch.nn.Module):
 class LSTMPool(torch.nn.Module):
     def __init__(self, feat_dim, edge_dim, time_dim):
         super(LSTMPool, self).__init__()
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.feat_dim = feat_dim
         self.time_dim = time_dim
         self.edge_dim = edge_dim
@@ -281,6 +288,7 @@ class LSTMPool(torch.nn.Module):
 class MeanPool(torch.nn.Module):
     def __init__(self, feat_dim, edge_dim):
         super(MeanPool, self).__init__()
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.edge_dim = edge_dim
         self.feat_dim = feat_dim
         self.act = torch.nn.ReLU()
@@ -312,6 +320,7 @@ class AttnModel(torch.nn.Module):
         """
         super(AttnModel, self).__init__()
         
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.feat_dim = feat_dim
         self.time_dim = time_dim
         
@@ -383,7 +392,7 @@ class TGANMARL(torch.nn.Module):
                  attn_mode='prod', use_time='time', agg_method='attn', node_dim=None, time_dim=None,
                  num_layers=1, n_head=1, null_idx=0, num_heads=1, drop_out=0.1, seq_len=None):
         super(TGANMARL, self).__init__()
-        
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.num_layers = num_layers 
         self.ngh_finder = ngh_finder
         self.null_idx = null_idx
@@ -439,8 +448,8 @@ class TGANMARL(torch.nn.Module):
         
         batch_size = len(src_idx_l)
         
-        src_node_batch_th = torch.from_numpy(src_idx_l).long()
-        cut_time_l_th = torch.from_numpy(cut_time_l).float()
+        src_node_batch_th = torch.from_numpy(src_idx_l).long().to(self.device)
+        cut_time_l_th = torch.from_numpy(cut_time_l).float().to(self.device)
         
         cut_time_l_th = torch.unsqueeze(cut_time_l_th, dim=1)
         # query node always has the start time -> time span == 0

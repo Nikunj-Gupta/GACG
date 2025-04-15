@@ -339,7 +339,7 @@ class CgmixMAC(BasicMAC):
                         return self.mixer(th.cat((q_i, q_ij), dim=1), ep_batch["state"][:, t]).squeeze(dim=-1).squeeze(dim=-1)
                     else:
                         return self.mixer(th.cat((q_i, q_ij), dim=1), ep_batch["state"][:, t])
-                elif self.args.learner == "cgmix_learner" or self.args.learner == "cgmix_learner_old":
+                elif self.args.learner == "cgmix_learner" or self.args.learner == "cgmix_learner":
                     return q_i, q_ij
 
                 else:
