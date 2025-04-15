@@ -63,7 +63,7 @@ class QLearner:
         mac_out = th.stack(mac_out, dim=1)  # Concat over time
         mac_hidden_states = th.stack(mac_hidden_states, dim=1)
         mac_hidden_states = mac_hidden_states.reshape(batch.batch_size, self.args.n_agents, batch.max_seq_length, -1).transpose(1,2).cpu() #btav
-
+    
         # Pick the Q-Values for the actions taken by each agent
         chosen_action_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # Remove the last dim
 

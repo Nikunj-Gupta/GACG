@@ -200,7 +200,7 @@ class QMixer(nn.Module):
                 #comment
 
         edges, timesteps = self.generate_edges_with_reset_timesteps_no_interlinks(bs * ts * self.n_agents, self.n_agents, 3, ts, neighbor_table) # N, g, k, t 
-        tgat_batch = 4 
+        tgat_batch = 1 
         for _ in range(tgat_batch):  
             sampled_edges, sampled_timesteps = self.sample_edges(edges, timesteps, bs * ts * self.n_agents) 
             sampled_edges = th.tensor(sampled_edges).T 
@@ -221,7 +221,8 @@ class QMixer(nn.Module):
 
         hidden_states = hidden_states.reshape(-1, self.n_agents, self.args.rnn_hidden_dim)
         
-        hidden_flat = hidden_states.view(bs, ts, -1)  # shape: (bs, ts, n * hidden_state_dim)
+        hidden_flat = hidden_states.view(bs*ts, -1)  # shape: (bs, ts, n * hidden_state_dim)
+        # hidden_flat = hidden_flat.view(-1, hidden_flat.size(-1))
         
         combined_states = th.cat([states, hidden_flat], dim=-1)  # shape: (bs, ts, state_dim + n*hidden_state_dim)
         
