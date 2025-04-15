@@ -79,7 +79,7 @@ class QMixer(nn.Module):
         
         k_past_self = int(10/10 * t)
         
-        k_past_neighbors = int(t/ (math.log(t) ** 2))    
+        k_past_neighbors = int(1/2 * int(t/ (math.log(t) ** 2)) )  
         
         # # graphv2 
         for batch in range(int((N/g)/t)): 
