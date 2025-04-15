@@ -19,7 +19,10 @@ all:
 
 	# python src/main.py --config=qmix --env-config=gymma with env_args.time_limit=25 env_args.key="pz-mpe-simple-spread-v3" seed=10 use_cuda=False 
 
-	python src/main.py --config=qmix --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" env_args.time_limit=25 seed=58 use_cuda=False
+	# python src/main.py --config=qmix --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" env_args.time_limit=25 seed=58 use_cuda=False
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=qmix --env-config=gather with seed=100 use_cuda=True
+
+
 
 pogema-runs: 
 	# CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=pogema with seed=0 use_cuda=True & 

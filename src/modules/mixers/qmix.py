@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from torch_geometric.nn import GATv2Conv 
+from torch_geometric.nn import GATv2Conv as GAT 
 from components.tgat_module import TGANMARL 
 from components.tgat_graph import NeighborFinder 
 import random 
@@ -16,10 +16,14 @@ class QMixer(nn.Module):
         self.args = args
         self.n_agents = args.n_agents
         self.state_dim = int(np.prod(args.state_shape))
-        self.gat = GATv2Conv(self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, heads=1, concat=False) 
-        
+        self.obs_dim = int(np.prod(args.obs_shape))
+
+        # self.hidden_dim = self.args.rnn_hidden_dim 
+        self.hidden_dim = self.obs_dim 
+
+        self.gat = GAT(self.hidden_dim, self.hidden_dim, heads=1, concat=False) 
         ngh_finder = NeighborFinder(adj_list=[[] for _ in range(self.n_agents + 1)]) 
-        self.tgan = TGANMARL(ngh_finder, self.args.rnn_hidden_dim) 
+        self.tgan = TGANMARL(ngh_finder, self.hidden_dim)
 
         self.embed_dim = args.mixing_embed_dim
 
@@ -41,8 +45,7 @@ class QMixer(nn.Module):
 
         # State dependent bias for hidden layer
         self.hyper_b_1 = nn.Linear(self.state_dim, self.embed_dim)
-        
-        combined_dim = self.state_dim + self.n_agents * self.args.rnn_hidden_dim
+        combined_dim = self.state_dim + self.n_agents * self.hidden_dim 
 
         # V(s) instead of a bias for the last layers
         self.V = nn.Sequential(nn.Linear(combined_dim, self.embed_dim),
@@ -142,13 +145,16 @@ class QMixer(nn.Module):
         
         return sampled_edges, sampled_timesteps
 
-    def forward(self, agent_qs, states, hidden_states=None):
+    def forward(self, agent_qs, batch, hidden_states=None):
+        states = batch["state"] 
+        obs = batch["obs"] 
+        hidden_states = obs 
         bs = agent_qs.size(0)
         ts =  hidden_states.size(1)
         states = states.reshape(-1, self.state_dim)
         agent_qs = agent_qs.view(-1, 1, self.n_agents)
         
-        hidden_states = hidden_states.reshape(-1, self.args.rnn_hidden_dim) 
+        hidden_states = hidden_states.reshape(-1, self.hidden_dim) 
             
         neighbor_table = {i: [] for i in range(bs * ts * self.n_agents)}
         
@@ -219,7 +225,7 @@ class QMixer(nn.Module):
             self.tgan.ngh_finder = ngh_finder 
             hidden_states = self.tgan(n_feat_th=hidden_states, src_idx_l=np.array(train_src_l), cut_time_l=np.array(train_ts_l)) 
 
-        hidden_states = hidden_states.reshape(-1, self.n_agents, self.args.rnn_hidden_dim)
+        hidden_states = hidden_states.reshape(-1, self.n_agents, self.hidden_dim)
         
         hidden_flat = hidden_states.view(bs*ts, -1)  # shape: (bs, ts, n * hidden_state_dim)
         # hidden_flat = hidden_flat.view(-1, hidden_flat.size(-1))
