@@ -103,8 +103,8 @@ class QLearner:
 
         # Mix
         if self.mixer is not None:
-            chosen_action_qvals = self.mixer(chosen_action_qvals, batch["state"][:, :-1], mac_hidden_states[:, :-1])
-            target_max_qvals = self.target_mixer(target_max_qvals, batch["state"][:, 1:], target_mac_hidden_states[:, 1:])
+            chosen_action_qvals = self.mixer(chosen_action_qvals, batch[:, :-1], mac_hidden_states[:, :-1])
+            target_max_qvals = self.target_mixer(target_max_qvals, batch[:, 1:], target_mac_hidden_states[:, 1:])
 
 
         # Calculate 1-step Q-Learning targets
