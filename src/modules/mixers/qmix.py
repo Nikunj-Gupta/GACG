@@ -80,9 +80,9 @@ class QMixer(nn.Module):
         edges = set()  # To store unique edges
         timesteps = {}  # Dictionary to store edge timesteps
         
-        k_past_self = int(10/10 * t)
+        k_past_self = 4
         
-        k_past_neighbors = int(1/2 * int(t/ (math.log(t) ** 2)) )  
+        k_past_neighbors = 1
         
         # # graphv2 
         for batch in range(int((N/g)/t)): 

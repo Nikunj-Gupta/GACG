@@ -19,7 +19,7 @@ new-runs:
 	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=qmix --env-config=gather with seed=0 use_cuda=True & 
 	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=qmix --env-config=gather with seed=1 use_cuda=True & 
 	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=qmix --env-config=gather with seed=2 use_cuda=True & 
-	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=qmix --env-config=gather with seed=3 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=qmix --env-config=gather with seed=3 use_cuda=True &
 
 
 
