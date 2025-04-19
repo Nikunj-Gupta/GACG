@@ -13,7 +13,14 @@ all:
 
 	# python src/main.py --config=qmix --env-config=gather with seed=0 use_cuda=False 
 	# python src/main.py --config=qmix --env-config=gymma with env_args.time_limit=25 env_args.key="pz-mpe-simple-spread-v3" seed=10 use_cuda=False 
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=100 use_cuda=True 
 
+
+dicg-tgat-runs-tag: 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=0 use_cuda=True 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=1 use_cuda=True 
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=2 use_cuda=True 
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=3 use_cuda=True 
 
 new-runs: 
 	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=qmix --env-config=gather with seed=0 use_cuda=True & 

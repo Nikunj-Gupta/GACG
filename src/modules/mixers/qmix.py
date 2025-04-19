@@ -80,7 +80,7 @@ class QMixer(nn.Module):
         edges = set()  # To store unique edges
         timesteps = {}  # Dictionary to store edge timesteps
         
-        k_past_self = 4
+        k_past_self = 1
         
         k_past_neighbors = 1
         
