@@ -80,7 +80,7 @@ class QMixer(nn.Module):
         edges = set()  # To store unique edges
         timesteps = {}  # Dictionary to store edge timesteps
         
-        k_past_self = 4
+        k_past_self = self.args.self_past
         
         k_past_neighbors = 1
         
@@ -186,8 +186,9 @@ class QMixer(nn.Module):
             
             # Get the indices for these edges
             t_attention = attention_weights[t_mask]
+    
                 
-            median_val = th.quantile(t_attention, 0.5)
+            median_val = th.quantile(t_attention, self.args.k_percent)
             
             keep_mask = (t_attention >= median_val)
             

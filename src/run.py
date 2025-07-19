@@ -38,7 +38,7 @@ def run(_run, _config, _log):
 
     # configure tensorboard logger
     # unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-    unique_token = "{}/{}__{}__{}__{}".format(args.env, args.env, args.name, args.agent, "seed_"+str(args.seed)) 
+    unique_token = "{}/{}__{}__{}__{}__{}__{}".format(args.env, args.env, args.name, args.agent, "seed_"+str(args.seed), args.k_percent, "self_"+str(args.self_past)) 
     if args.env == "sc2wrapped": 
         unique_token = "StarCraft2/{}".format("--".join([
             args.env_args["map_name"], 

@@ -13,15 +13,55 @@ all:
 
 	# python src/main.py --config=qmix --env-config=gather with seed=0 use_cuda=False 
 	# python src/main.py --config=qmix --env-config=gymma with env_args.time_limit=25 env_args.key="pz-mpe-simple-spread-v3" seed=10 use_cuda=False 
+	# CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gather with seed=0 use_cuda=True
+
+tag-ablations-self-50:
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=1 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=3 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=5 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=7 use_cuda=True &
 
 
-new-runs: 
-	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=qmix --env-config=gather with seed=0 use_cuda=True & 
-	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=qmix --env-config=gather with seed=1 use_cuda=True & 
-	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=qmix --env-config=gather with seed=2 use_cuda=True & 
-	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=qmix --env-config=gather with seed=3 use_cuda=True &
+tag-ablations-k-high:
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=1 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=3 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=5 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=dicg --env-config=gymma with env_args.key="pz-mpe-simple-tag-v3" seed=7 use_cuda=True &
 
 
+
+ablations-self-50:
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gather with seed=1 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gather with seed=3 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gather with seed=5 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gather with seed=7 use_cuda=True &
+
+
+ablations-k-high:
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gather with seed=1 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gather with seed=3 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=dicg --env-config=gather with seed=5 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=dicg --env-config=gather with seed=7 use_cuda=True &
+
+
+new-runs-8-10: 
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=qmix --env-config=gather with seed=8 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=qmix --env-config=gather with seed=9 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=qmix --env-config=gather with seed=10 use_cuda=True & 
+
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gather with seed=8 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gather with seed=9 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gather with seed=10 use_cuda=True & 
+
+new-runs-dicg-tgat: 
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gather with seed=0 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gather with seed=1 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gather with seed=2 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=dicg --env-config=gather with seed=3 use_cuda=True &
+	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=dicg --env-config=gather with seed=4 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=1 python src/main.py --config=dicg --env-config=gather with seed=5 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=2 python src/main.py --config=dicg --env-config=gather with seed=6 use_cuda=True & 
+	CUDA_VISIBLE_DEVICES=3 python src/main.py --config=dicg --env-config=gather with seed=7 use_cuda=True &
 
 obs-tgat-runs: 
 	CUDA_VISIBLE_DEVICES=0 python src/main.py --config=qmix --env-config=gather with seed=0 use_cuda=True
